@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="A front-end template that helps you build fast, modern mobile web apps.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+    <title>Control de un ventilador</title>      
+      <script>
+        /* invoca a registraServiceWorker instalar la aplicación en el caché del
+         * navegador. No se espera a que termine el registro. */
+        registraServiceWorker();
+        /** Registra un service worker para instalar la aplicación en el
+         * caché del navegador. La palabra reservada async indica que no espera
+         * a que termine y libera el registro de activación que lo llamó. */
+        async function registraServiceWorker() {
+          if ("serviceWorker" in navigator) {
+            try {
+              /* Registra el service worker y espera que termine. El service
+               * worker debe estar en la carpeta public. La palabra await indica
+               * que espera a que termine y solo puede usarse en una función
+               * async. */
+              const registro = await navigator.serviceWorker.register("sw.js");
+              // Registro correcto y se muestra en la consola.
+              console.log("Service Worker registrado.");
+              console.log(registro);
+            } catch (e) {
+              // Hubo un error en el registro.
+              muestraError(e);
+            }
+          }
+        }
+        /** Procesa una excepción y muestra un mensaje de error.
+         * @param {Error} e descripción del error. */
+        function muestraError(e) {
+          console.log(e);
+          alert(e.message);
+        }
+      </script>
+      <!-- Ícono para la página web. Debe ponerse en la raíz de la página. -->
+      <link rel="icon" sizes="32x32" href="favicon.ico">
+      <!-- Color de la barra de navegación de Chrome en dispositivos móviles. -->
+      <meta name="theme-color" content="#ffcb2d">
+      <!-- Configuración de la PWA: Chrome y Edge. -->
+      <link rel="manifest" href="manifest.json">
+      <!-- Configuración para Web Clip en Safari. -->
+      <meta name="apple-mobile-web-app-title" content="dmppwa">
+      <meta name="apple-mobile-web-app-capable" content="yes">
+      <meta name="apple-mobile-web-app-status-bar-style" content="default">
+      <link rel="apple-touch-icon" href="imagenes/icono-2048.png">
+      <link rel="apple-touch-icon" sizes="256x256" href="imagenes/icono-256.png">
+      <link rel="apple-touch-icon" sizes="1024x1024" href="imagenes/icono-1024.png">
+      <link rel="apple-touch-icon" sizes="2048x2048" href="imagenes/icono-2048.png">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
+      <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+      <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.teal-red.min.css">
+      <script type="module" src="cmp/mi-footer.js"></script>
+      <!-- Carga el núcleo de Firebase. Actualiza los números de versión cuando
+      sea necesario. Hemos quitado el atributo defer que aparecía originalmente.
+      -->
+      <script src="/__/firebase/7.14.6/firebase-app.js"></script>
+      <!-- Solo incluye las características de Firebase que necesites.s -->
+      <script src="/__/firebase/7.14.6/firebase-auth.js"></script>
+      <script src="/__/firebase/7.14.6/firebase-firestore.js"></script>
+      <script src="/__/firebase/7.14.6/firebase-storage.js"></script>
+      <!-- Carga la configuración de tu proyecto en el servidor de Firebase. -->
+      <script src="/__/firebase/init.js"></script>  
+      <link rel="stylesheet" href="css/estilos.css">  
+    </head>
+    <style>
+      #view-source {
+        position: fixed;
+        display: block;
+        right: 0;
+        bottom: 0;
+        margin-right: 40px;
+        margin-bottom: 40px;
+        z-index: 900;
+      }
+      </style>
+
+
+<script>
+  /* agregamos las constantes que vienen directo de la base de dedatos y que hacen posiblela conexion con la base */
+  const firestore = firebase.firestore();
+ const ID_PROYECTO = "ventiladoiot";
+ const ENTIDAD_DIRECCION="DIRECCION";
+ const ENTIDAD_VENTILADOR ="VENTILADOR";
+ const ENTIDAD_VELOCIDAD ="VELOCIDAD";
+  const ID = "iot2";
+/* Ahora con las URL son las encargadas de encontrar las entidades en la base de datos y ademas del envio y descar de 
+de datos al servidor */
+    const URL_VENTILADOR = `https://firestore.googleapis.com/v1/projects/${
+    ID_PROYECTO}/databases/(default)/documents/${ENTIDAD_VENTILADOR}/${ID}`;
+  const URL_VELOCIDAD = `https://firestore.googleapis.com/v1/projects/${
+    ID_PROYECTO}/databases/(default)/documents/${ENTIDAD_VELOCIDAD}/${
+    ID}`;
+    const URL_DIRECCION = `https://firestore.googleapis.com/v1/projects/${
+    ID_PROYECTO}/databases/(default)/documents/${ENTIDAD_DIRECCION}/${
+    ID}`;
+  const URL_AGREGA = `https://firestore.googleapis.com/v1/projects/${
+    ID_PROYECTO}/databases/(default)/documents/${ENTIDAD_VELOCIDAD}/${
+    ID}/LECTURAS`;
+    /* nos da el tiempo de espera entre cada ciclo */
+  const INTERVALO_EN_MILIS = 1000;
+  /metodo post es un metodo de envio/
+  const MÉTODO_AGREGA = "POST";
+  const MÉTODO_CAMBIOS = "PATCH";
+  const HEADERS_JSON = {
+    "Content-Type": "application/json"
+  };
+  function procesaError(e) {
+    console.log(e);
+    alert(e.message);
+  }
+</script>
+</head>
+<body>
+<div class="demo-layout mdl-layout mdl-layout--fixed-header mdl-js-layout mdl-color--blue-600">
+  <header class="demo-header mdl-layout_header mdl-layout_header--scroll mdl-color--white-200 mdl-color-text--black-800">
+    <div class="mdl-layout__header-row">
+      <span class="mdl-layout-title"></span>
+      <div class="mdl-layout-spacer"></div>
+      <div class="mdl-textfield mdl-js-textfield mdl-textfield--expandable">           
+      </div>
+    </div>
+  </header>
+  <div class="demo-ribbon"></div>
+  <main class="demo-main mdl-layout__content">
+    <div class="demo-container mdl-grid">
+      <div class="mdl-cell mdl-cell--2-col mdl-cell--hide-tablet mdl-cell--hide-phone"></div>
+      <div class="demo-content mdl-color--white mdl-shadow--4dp content mdl-color-text--grey-800 mdl-cell mdl-cell--8-col">
+        <div class="demo-crumbs mdl-color-text--grey-500">
+<section id=iot2 class="section">
+<p>
+  <label>
+   Direccion  del Ventilador  
+  
+  </label><br/>
+  Izquierda<input id="iotDireccion2" type="range" min="0" max="1" onchange="direccionModificada();"
+  >Derecha
+</p>
+<p><label>Direccion <output id="iotDireccion"></output></label></p>
+<p><output id="iotError"></output></p>
+</section>
+
+<!-- A qui vamos a tener el control para poder manejar la velocidad de nuestro ventilador 
+con un range que se utliza para ejecutar un metodo en cuanto se detecta un cambio de valor -->
+<section id=iot class="section">
+<img id="animacion" src="imagenes/apagado.jpg" width="200" height="200">
+  <p>
+    <label>
+     Velocidad del Ventilador  
+     
+      <input id="iotVelocidad" type="range" min="0" max="10"
+        onchange="velocidadModificada();">
+    </label>
+  </p>
+  <p><label>Ventilador <output id="iotVentilador"></output></label></p>
+  <p><output id="iotError"></output></p>
+</section>
+
+<script>
+  setInterval(actualizaIot, INTERVALO_EN_MILIS);
+  iniciaVelocidad();
+  // a qui esperamos con el await la promesa del metodo fetch , y la url es para acceder a la base de datos
+  //y todo se guarda en resp para poder realizar todo el proceso y tenemos un try catch por si ocurre un error 
+  async function actualizaIot() {
+    try {
+      const resp = await fetch(URL_VENTILADOR);
+      if (resp.ok) {
+        const json = await resp.json();
+        /* iotVentilador es id de un componente html (output)  se hace una validacion que verifica si existe un valor 
+        si este es booleano (true) si resulta true se actualiza a encendido y si es false a apagado */
+        iotVentilador.value = json.fields.valor && json.fields.valor.booleanValue ?
+          "Encendido" : "Apagado";
+      } else {
+        iotVentilador.value = "Apagado";
+        console.log(resp.statusText);
+      }
+    } catch (e) {
+      console.log(e);
+      iotError.value = e.message;
+    }
+    /* utlizamos try inicar que el codigo que esta adentro puede contener algun error y si lo contiene se va al catch 
+    depues utilizamos el procedimiento anterior de forma que ahora si resulta 0 sera izquiera y si es 1 es derecha */
+     try {
+      const resp2= await fetch(URL_DIRECCION);
+      if (resp2.ok) {
+        const json = await resp2.json();
+        if(json.fields.valor && json.fields.valor.integerValue){
+          iotDireccion.value = json.fields.valor.integerValue == 0 ?
+          "Izquierda" : "Derecha";
+        } 
+      } else {
+       
+        iotDireccion.value = "Izquierda";
+        console.log(resp2.statusText);
+      }
+    } catch (e) {
+      console.log(e);
+      iotError.value = e.message;
+    }
+  } 
+  /* si no hay ningun valor en la base de datos se inicializa en el valor por default que es 0 y si hay algun valor en la
+  base de datos , lo coloca en el componente html (input range )*/
+  async function iniciaDireccion() {
+    try {
+      const resp = await fetch(URL_DIRECCION);
+      if (resp.ok) {
+        const json = await resp.json();
+        iotDireccion2.value =
+          json.fields.valor && json.fields.valor.integerValue ?
+            json.fields.valor.integerValue : 0;
+            
+      } else {
+        iotDireccion2.value = 0;
+        console.log(resp.statusText);
+      }
+    } catch (e) {
+      console.log(e);
+      iotError.value = e.message;
+    }
+  }
+  async function iniciaVelocidad() {
+    try {
+      const resp = await fetch(URL_VELOCIDAD);
+      if (resp.ok) {
+        const json = await resp.json();
+        iotVelocidad.value =
+          json.fields.valor && json.fields.valor.integerValue ?
+            json.fields.valor.integerValue : 0;
+      } else {
+        iotVelocidad.value = 0;
+        console.log(resp.statusText);
+      }
+    } catch (e) {
+      console.log(e);
+      iotError.value = e.message;
+    }
+  }
+function encendidoApagado() {
+var image = document.getElementById('animacion');
+if (image.src.match("apagado")) {
+image.src = "imagenes/ventilador.jpg";
+} else {
+image.src = "imagenes/apagado.jpg";
+}
+}
+
+  /* este metodo lo que ahce es que cuando se modifica el rango de velocidad envia los datos al servidor actulizando
+  y agregando los datos reflejados en tiempo real y es donde entran las lecturas que se ven en la base de datos
+  */
+  async function velocidadModificada() {
+    try {
+      /* lo que se hace a qui es que construye un json donde va a guardar el rango de velocidad que selecciono*/
+      var data = {
+        fields: { valor: { integerValue: iotVelocidad.value } }
+      };
+      /* a qui lo que hace es mandar a la base de datos el JSON para que actualize los datos de forma parcial con el
+      metodo patch */
+      const resp = await fetch(URL_VELOCIDAD, {
+        method: MÉTODO_CAMBIOS,
+        body: JSON.stringify(data),
+        headers: HEADERS_JSON,
+      });
+      if (!resp.ok) {
+        throw new Error(resp.message);
+      }
+      const resp2 = await fetch(URL_AGREGA, {
+        method: MÉTODO_AGREGA,
+        body: JSON.stringify(data),
+        headers: HEADERS_JSON,
+      });
+      /*a qui si la respuesta del servidor no fue correcta manda mensaje de error */
+      if (!resp2.ok) {
+        throw new Error(resp2.message);
+      }
+    } catch (e) {
+      console.log(e);
+      iotError.value = e.message;
+    }
+  }
+  /*Cuando se seleciona la direccion del ventilador se actualiza en la base de datos  */
+  async function direccionModificada(){
+    try {
+      /* se utliza esto para acceder a la base de datos , indicas a que coleccion , indicas que documento
+      y aplicamos un metodo set para actualizar eso con el valor obtenido del input */
+      await firestore.collection(ENTIDAD_DIRECCION).doc(ID).set({
+        valor:iotDireccion2.value
+      });
+    } catch (e) {
+      procesaError(e);
+    }
+  }/* a qui comienza la parte de meter que es la barra que simula la velocidad de el ventilador 
+  utilizamos onclik para que al seleccionar la casilla de encendido o apagado se active el metodo */
+</script>
+
+<section id=mp>
+
+  <p><meter id=mpVelocidad min="0" max="10"></meter></p>
+  <p>
+    <label>
+      <!--  <input id=mpVentilador type="checkbox" onclick="ventiladorModificado();">Ventilador -->
+
+      <input id=mpVentilador type="checkbox" onclick="encendidoApagado();ventiladorModificado();">Encender/Apagar
+    </label>
+  </p>
+</section>
+
+<script>
+  /* Se actualizan los valores de los componentes de el (meter) y (output) */
+  actualizaMp();
+  actualizaDireccion();
+  async function actualizaMp() {
+    firestore.collection(ENTIDAD_VELOCIDAD).doc(ID).onSnapshot(
+      doc => {
+        /*si el documento existe el valor de la base de datos se va a asignar en mpVelocidad */
+        if (doc.exists) {
+          mpVelocidad.value = doc.data().valor || 0;
+        } else {
+          mpVelocidad.value = 0;
+        }
+      },
+      e => {
+        procesaError(e);
+        
+      }
+    );
+    /* a qui entra a la base de datos especificamente en una coleccion y en un documento 
+    y depues se utliza el metodo getpara traer todos los datos  */
+    const docVentiler = await firestore.collection(ENTIDAD_VENTILADOR).doc(ID).get();
+    mpVentilador.checked = docVentiler.exists && Boolean(docVentiler.data().valor);
+  }
+  /* A qui utilizamos el metodo onSnapshot para traer los datos en tiempo real de la base de datos
+  y realizamos validaciones y asignamos valores para cuando en el servidor web se realizen cambios en tiempo real */
+  async function actualizaDireccion() {
+    firestore.collection(ENTIDAD_DIRECCION).doc(ID).onSnapshot(
+      doc => {
+        if (doc.exists) {
+          
+          if( doc.data().valor==0){
+            
+            iotDireccion.value ="Izquierda";
+          }else{
+            iotDireccion.value ="Derecha";
+          }
+
+
+          
+        } else {
+          iotDireccion.value = 0;
+        }
+      },
+      e => {
+        procesaError(e);
+        
+      }
+    );
+    
+  
+    const docDireccion = await firestore.collection(ENTIDAD_DIRECCION).doc(ID).get();
+    iotDireccion2.value = docDireccion.exists?docDireccion.data().valor:0;
+  }
+  async function ventiladorModificado() {
+    try {
+      await firestore.collection(ENTIDAD_VENTILADOR).doc(ID).set({
+        valor: mpVentilador.checked
+      });
+    } catch (e) {
+      procesaError(e);
+    }
+  }
+</script>
+<mi-footer></mi-footer>
+</body>
+</html>
